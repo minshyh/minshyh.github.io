@@ -34,26 +34,52 @@
         }
 
         // 從 URL 獲取參數
-       function getUrlParameters(fullUrl) {
-            const [basePart, queryPart] = fullUrl.split('?'); // 分離 URL 的 base 和 query
-            if (!queryPart) return {}; // 沒有 query 時返回空對象
-        
-            // 解析第一層參數
-            const params = parseQueryString(queryPart);
-        
-            // 提取並解碼嵌套的 `url` 參數
-            if (params.url) {
-                const decodedUrl = safeDecodeURIComponent(params.url); // 解碼一次
-                params.decodedUrl = decodedUrl;
-        
-                // 處理嵌套的 `url`，提取其內部參數（如 tags）
-                const [targetBasePart, targetQueryPart] = decodedUrl.split('?');
-                if (targetQueryPart) {
-                    params.targetParams = parseQueryString(targetQueryPart);
-                }
+       function getUrlParameters() {
+            const fullUrl = window.location.href
+            const queryIndex = url.indexOf('?');
+            if (queryIndex === -1) {
+                throw new Error('URL 中缺少查詢參數');
             }
+            
+           const queryString = url.slice(queryIndex + 1); // 提取查詢字符串
+            const params = {};
+    
+        // 分割查詢參數
+        queryString.split('&').forEach(pair => {
+            const [key, value] = pair.split('=');
+            params[key] = value ? decodeURIComponent(value) : null;
+        });
+    
+        // 進一步解碼 `url` 參數
+        if (params.url) {
+            params.decodedUrl = decodeURIComponent(params.url);
+    
+            // 解析 `url` 中的內嵌參數（如 tags）
+            const innerQueryIndex = params.decodedUrl.indexOf('?');
+            if (innerQueryIndex !== -1) {
+                const innerQueryString = params.decodedUrl.slice(innerQueryIndex + 1);
+                params.innerParams = {};
+                innerQueryString.split('&').forEach(pair => {
+                    const [key, value] = pair.split('=');
+                    params.innerParams[key] = value ? decodeURIComponent(value) : null;
+                });
+            }
+        }
+
+    return params;
+    }
+    // 測試代碼
+        try {
+            const params = getUrlParameters();
+            console.log('解析結果:', params);
         
-            return params;
+            // 提取內嵌的 `tags` 參數
+            if (params.innerParams && params.innerParams.tags) {
+                const tags = JSON.parse(params.innerParams.tags);
+                console.log('tags:', tags);
+            }
+        } catch (e) {
+            console.error('解析失敗:', e.message);
         }
 
         // 發送數據至 Shopline Tag Webhook
@@ -109,8 +135,7 @@
         async function initializeLiff() {
             try {
                 // 獲取 URL 參數
-                const fullUrl = window.location.href
-                const params = getUrlParameters(fullUrl);
+                const params = getUrlParameters();
                 console.log('Parsed parameters:', params);
                 
                 if (!params.liffId) {
