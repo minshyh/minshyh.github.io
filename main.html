@@ -88,7 +88,7 @@
             try {
                 // 先嘗試使用 liff.openWindow
                 liff.openWindow({
-                    url: params.decodedUrl,
+                    url: url,
                     external: false
                 });
 
@@ -96,7 +96,7 @@
                 setTimeout(() => {
                     if (document.getElementById('loading').innerText === 'Redirect...') {
                         console.log('Fallback to window.location');
-                        window.location.href = params.decodedUrl;
+                        window.location.href = url;
                     }
                 }, 1000);
             } catch (error) {
