@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LIFF Barcode Display</title>
+    <title>我的會員條碼</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body {
@@ -13,30 +13,35 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            background-color: #f7f7f7;
         }
         .barcode-container {
-            margin-top: 20px;
+            margin: 20px auto;
             text-align: center;
+            max-width: 90%;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .barcode-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
         }
         .error {
             color: red;
             margin-top: 10px;
-        }
-        .debug-info {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border-radius: 4px;
-            font-family: monospace;
-            width: 100%;
-            max-width: 600px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div id="barcodeDisplay" class="barcode-container"></div>
     <div id="errorMessage" class="error"></div>
-    <div id="debugInfo" class="debug-info"></div>
 
     <script>
         function getUrlParameter(name) {
@@ -44,78 +49,52 @@
             return urlParams.get(name);
         }
 
-        function logDebug(message) {
-            const debugDiv = document.getElementById('debugInfo');
-            debugDiv.innerHTML += `<div>${new Date().toISOString()} - ${message}</div>`;
-            console.log(message);
-        }
-
         async function initializeLiff() {
             try {
                 const liffId = getUrlParameter('liffId');
-                logDebug(`LIFF ID: ${liffId}`);
-
                 if (!liffId) {
                     throw new Error('LIFF ID not provided in URL parameters');
                 }
 
-                logDebug('Initializing LIFF...');
                 await liff.init({ liffId: liffId });
-                logDebug('LIFF initialized successfully');
 
                 if (!liff.isLoggedIn()) {
-                    logDebug('User not logged in, redirecting to login...');
                     liff.login();
                 } else {
-                    logDebug('User is logged in, displaying barcode...');
                     displayBarcode();
                 }
             } catch (err) {
-                const errorMsg = 'Error initializing LIFF: ' + err.message;
-                document.getElementById('errorMessage').textContent = errorMsg;
-                logDebug(`ERROR: ${errorMsg}`);
+                document.getElementById('errorMessage').textContent = 
+                    'Error initializing LIFF: ' + err.message;
             }
         }
 
         function displayBarcode() {
             try {
                 const barcodeText = getUrlParameter('text');
-                logDebug(`Barcode text: ${barcodeText}`);
-
                 if (!barcodeText) {
                     throw new Error('Barcode text not provided in URL parameters');
                 }
 
                 const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeText)}&includetext`;
-                logDebug(`Generated barcode URL: ${barcodeUrl}`);
-
+                
                 const barcodeImage = document.createElement('img');
                 barcodeImage.src = barcodeUrl;
-                barcodeImage.alt = `Barcode: ${barcodeText}`;
+                barcodeImage.alt = `會員條碼`;
                 barcodeImage.onerror = () => {
-                    const errorMsg = 'Error generating barcode';
-                    document.getElementById('errorMessage').textContent = errorMsg;
-                    logDebug(`ERROR: ${errorMsg}`);
-                };
-                barcodeImage.onload = () => {
-                    logDebug('Barcode image loaded successfully');
+                    document.getElementById('errorMessage').textContent = 
+                        'Error generating barcode';
                 };
 
                 const container = document.getElementById('barcodeDisplay');
                 container.innerHTML = '';
                 container.appendChild(barcodeImage);
-                logDebug('Barcode display element created');
             } catch (err) {
-                const errorMsg = err.message;
-                document.getElementById('errorMessage').textContent = errorMsg;
-                logDebug(`ERROR: ${errorMsg}`);
+                document.getElementById('errorMessage').textContent = err.message;
             }
         }
 
-        window.addEventListener('load', () => {
-            logDebug('Page loaded, starting initialization...');
-            initializeLiff();
-        });
+        window.addEventListener('load', initializeLiff);
     </script>
 </body>
 </html>
