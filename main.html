@@ -35,7 +35,7 @@
 
         // 從 URL 獲取參數
        function getUrlParameters() {
-            const fullUrl = window.location.href
+            const url = window.location.href
             const queryIndex = url.indexOf('?');
             if (queryIndex === -1) {
                 throw new Error('URL 中缺少查詢參數');
