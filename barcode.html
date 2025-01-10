@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF Barcode Display</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .barcode-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="barcodeDisplay" class="barcode-container"></div>
+    <div id="errorMessage" class="error"></div>
+
+    <script>
+        // 從 URL 取得參數的函數
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // 初始化 LIFF
+        async function initializeLiff() {
+            try {
+                // 從 URL 參數取得 liffId
+                const liffId = getUrlParameter('liffId');
+                if (!liffId) {
+                    throw new Error('LIFF ID not provided in URL parameters');
+                }
+
+                // 初始化 LIFF
+                await liff.init({ liffId: liffId });
+
+                // 確認登入狀態
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    displayBarcode();
+                }
+            } catch (err) {
+                document.getElementById('errorMessage').textContent = 
+                    'Error initializing LIFF: ' + err.message;
+            }
+        }
+
+        // 顯示條碼
+        function displayBarcode() {
+            try {
+                // 從 URL 參數取得條碼文字
+                const barcodeText = getUrlParameter('text');
+                if (!barcodeText) {
+                    throw new Error('Barcode text not provided in URL parameters');
+                }
+
+                // 建立條碼圖片
+                const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeText)}&includetext`;
+                
+                // 顯示條碼
+                const barcodeImage = document.createElement('img');
+                barcodeImage.src = barcodeUrl;
+                barcodeImage.alt = `Barcode: ${barcodeText}`;
+                barcodeImage.onerror = () => {
+                    document.getElementById('errorMessage').textContent = 
+                        'Error generating barcode';
+                };
+
+                const container = document.getElementById('barcodeDisplay');
+                container.innerHTML = ''; // 清除舊的內容
+                container.appendChild(barcodeImage);
+            } catch (err) {
+                document.getElementById('errorMessage').textContent = err.message;
+            }
+        }
+
+        // 當頁面載入完成時初始化 LIFF
+        window.addEventListener('load', initializeLiff);
+    </script>
+</body>
+</html>
