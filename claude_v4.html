@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF Redirect</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <div id="content">
+        <p>Redirect...</p>
+        <div id="debug"></div>
+        <div id="info"></div>
+    </div>
+
+    <script>
+        // 保存URL參數到localStorage
+        function saveUrlParams() {
+            const currentUrl = window.location.href;
+            localStorage.setItem('liffRedirectUrl', currentUrl);
+        }
+
+        // 從localStorage讀取並恢復URL參數
+        function getUrlParams() {
+            return localStorage.getItem('liffRedirectUrl');
+        }
+
+        async function initializeLiff() {
+            try {
+                const debugDiv = document.getElementById('debug');
+                
+                // 檢查是否有從localStorage恢復的URL
+                const savedUrl = getUrlParams();
+                const currentUrl = window.location.href;
+                const urlToUse = currentUrl.includes('liffId') ? currentUrl : savedUrl;
+                
+                if (!urlToUse) {
+                    throw new Error('No valid URL parameters found');
+                }
+
+                const urlParams = new URLSearchParams(new URL(urlToUse).search);
+                const liffId = urlParams.get('liffId');
+                
+                debugDiv.innerHTML += `<p>Raw URL: ${urlToUse}</p>`;
+                debugDiv.innerHTML += `<p>Detected LIFF ID: ${liffId}</p>`;
+
+                if (!liffId) {
+                    throw new Error('LIFF ID not found in URL parameters');
+                }
+
+                if (!liff) {
+                    throw new Error('LIFF SDK not loaded');
+                }
+
+                debugDiv.innerHTML += '<p>Attempting to initialize LIFF...</p>';
+                await liff.init({ liffId: liffId });
+                debugDiv.innerHTML += '<p>LIFF initialized successfully!</p>';
+
+                // 檢查是否在 LINE 環境中並處理登入
+                const isInClient = liff.isInClient();
+                debugDiv.innerHTML += `<p>Is in LINE: ${isInClient}</p>`;
+
+                // 如果不在LINE環境中且未登入，保存URL參數並執行登入
+                if (!isInClient && !liff.isLoggedIn()) {
+                    debugDiv.innerHTML += '<p>Not in LINE environment and not logged in. Saving URL and redirecting to login...</p>';
+                    saveUrlParams();
+                    liff.login();
+                    return;
+                }
+
+                // 登入成功後清除localStorage
+                localStorage.removeItem('liffRedirectUrl');
+
+                // 獲取目標 URL
+                let targetUrl = urlParams.get('url');
+                if (!targetUrl) {
+                    throw new Error('Target URL not found in parameters');
+                }
+
+                targetUrl = decodeURIComponent(decodeURIComponent(targetUrl));
+                debugDiv.innerHTML += `<p>Decoded target URL: ${targetUrl}</p>`;
+
+                // 解析目標 URL
+                const targetUrlObj = new URL(targetUrl);
+                const targetParams = new URLSearchParams(targetUrlObj.search);
+                const tagsParam = targetParams.get('tags');
+                
+                if (!tagsParam) {
+                    throw new Error('Tags parameter not found in target URL');
+                }
+
+                const tags = JSON.parse(decodeURIComponent(tagsParam));
+                
+                // 移除 tags 參數
+                targetParams.delete('tags');
+                targetUrlObj.search = targetParams.toString();
+                const cleanUrl = targetUrlObj.toString();
+
+                // 獲取用戶資料
+                const profile = await liff.getProfile();
+                
+                // 顯示資訊
+                const infoDiv = document.getElementById('info');
+                infoDiv.innerHTML = `
+                    <p>LIFF ID: ${liffId}</p>
+                    <p>Target URL: ${cleanUrl}</p>
+                    <p>Tags: ${JSON.stringify(tags)}</p>
+                    <p>User ID: ${profile.userId}</p>
+                `;
+
+                // 發送資料到指定的endpoint
+                try {
+                    debugDiv.innerHTML += '<p>Sending data to endpoint...</p>';
+                    const response = await fetch('https://api.besparks.co/api:G90hiIoE/redirect/v2', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            liffId: liffId,
+                            url: cleanUrl,
+                            tags: tags,
+                            userId: profile.userId
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API response error: ${response.status}`);
+                    }
+
+                    const responseData = await response.json();
+                    debugDiv.innerHTML += '<p>Data sent successfully!</p>';
+                    debugDiv.innerHTML += `<p>API Response: ${JSON.stringify(responseData)}</p>`;
+
+                    // 成功發送資料後，可以在這裡添加網頁跳轉邏輯
+                    /*
+                    liff.openWindow({
+                        url: cleanUrl,
+                        external: false
+                    });
+                    */
+
+                } catch (apiError) {
+                    debugDiv.innerHTML += `<p style="color: red">API Error: ${apiError.message}</p>`;
+                    console.error('API Error:', apiError);
+                }
+
+            } catch (err) {
+                const debugDiv = document.getElementById('debug');
+                debugDiv.innerHTML += `<p style="color: red">Error: ${err.message}</p>`;
+                console.error('Detailed error:', err);
+            }
+        }
+
+        // 檢查 SDK 載入狀態
+        if (typeof liff === 'undefined') {
+            document.getElementById('debug').innerHTML = '<p style="color: red">LIFF SDK not loaded yet</p>';
+        }
+
+        // 啟動應用
+        window.onload = initializeLiff;
+    </script>
+</body>
+</html>
