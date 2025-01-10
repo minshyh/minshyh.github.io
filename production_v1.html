@@ -6,20 +6,33 @@
     <title>LIFF Redirect</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        .redirect-text {
+        .container {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .close-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #00B900;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
             font-family: Arial, sans-serif;
-            font-size: 18px;
-            color: #333;
+        }
+        .close-button:hover {
+            background-color: #009900;
         }
     </style>
 </head>
 <body>
     <div id="content">
-        <div class="redirect-text">Redirect...</div>
+        <div class="container">
+            <button class="close-button" onclick="closeLiffWindow()">Close Window</button>
+        </div>
     </div>
 
     <script>
@@ -32,25 +45,26 @@
             return localStorage.getItem('liffRedirectUrl');
         }
 
+        function closeLiffWindow() {
+            if (liff.isInClient()) {
+                liff.closeWindow();
+            } else {
+                window.close();
+            }
+        }
+
         async function handleRedirect(cleanUrl) {
             const isInClient = liff.isInClient();
             
             if (isInClient) {
-                // 在 LINE APP 內開啟
+                // 在 LINE APP 內開啟新視窗
                 await liff.openWindow({
                     url: cleanUrl,
                     external: false
                 });
-                // 關閉當前 LIFF 視窗
-                setTimeout(() => {
-                    liff.closeWindow();
-                }, 500);
             } else {
-                // 在外部瀏覽器中直接開啟
-                await liff.openWindow({
-                    url: cleanUrl,
-                    external: true
-                });
+                // 在外部瀏覽器開啟新分頁
+                window.open(cleanUrl, '_blank');
             }
         }
 
