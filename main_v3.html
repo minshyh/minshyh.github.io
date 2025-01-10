@@ -7,6 +7,8 @@
 </head>
 <body>
     <div id="loading">Redirect...</div>
+    <h1>URL 參數解析結果</h1>
+    <div id="params-container"></div>
 
     <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -170,6 +172,7 @@
             } catch (err) {
                 console.error('Error:', err);
                 document.getElementById('loading').innerText = '發生錯誤：' + err.message;
+                document.getElementById('params-container').innerText = '發生錯誤：' + JSON.stringify(params);
             }
         }
 
