@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF Redirect</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <div id="content">
+        <p>Redirect...</p>
+        <div id="debug"></div>
+        <div id="info"></div>
+    </div>
+
+    <script>
+        async function initializeLiff() {
+            try {
+                // 顯示調試信息
+                const debugDiv = document.getElementById('debug');
+                const urlParams = new URLSearchParams(window.location.search);
+                const liffId = urlParams.get('liffId');
+                
+                debugDiv.innerHTML += `<p>Raw URL: ${window.location.href}</p>`;
+                debugDiv.innerHTML += `<p>Detected LIFF ID: ${liffId}</p>`;
+
+                // 檢查 LIFF ID 是否存在
+                if (!liffId) {
+                    throw new Error('LIFF ID not found in URL parameters');
+                }
+
+                // 檢查 LIFF SDK 是否已載入
+                if (!liff) {
+                    throw new Error('LIFF SDK not loaded');
+                }
+
+                // 初始化 LIFF
+                debugDiv.innerHTML += '<p>Attempting to initialize LIFF...</p>';
+                await liff.init({ liffId: liffId });
+                debugDiv.innerHTML += '<p>LIFF initialized successfully!</p>';
+
+                // 檢查是否在 LINE 環境中
+                const isInClient = liff.isInClient();
+                debugDiv.innerHTML += `<p>Is in LINE: ${isInClient}</p>`;
+
+                // 獲取目標 URL
+                let targetUrl = urlParams.get('url');
+                if (!targetUrl) {
+                    throw new Error('Target URL not found in parameters');
+                }
+
+                targetUrl = decodeURIComponent(decodeURIComponent(targetUrl));
+                debugDiv.innerHTML += `<p>Decoded target URL: ${targetUrl}</p>`;
+
+                // 解析目標 URL
+                const targetUrlObj = new URL(targetUrl);
+                const targetParams = new URLSearchParams(targetUrlObj.search);
+                const tagsParam = targetParams.get('tags');
+                
+                if (!tagsParam) {
+                    throw new Error('Tags parameter not found in target URL');
+                }
+
+                const tags = JSON.parse(decodeURIComponent(tagsParam));
+                
+                // 移除 tags 參數
+                targetParams.delete('tags');
+                targetUrlObj.search = targetParams.toString();
+                const cleanUrl = targetUrlObj.toString();
+
+                // 獲取用戶資料
+                const profile = await liff.getProfile();
+                
+                // 顯示資訊
+                const infoDiv = document.getElementById('info');
+                infoDiv.innerHTML = `
+                    <p>LIFF ID: ${liffId}</p>
+                    <p>Target URL: ${cleanUrl}</p>
+                    <p>Tags: ${JSON.stringify(tags)}</p>
+                    <p>User ID: ${profile.userId}</p>
+                `;
+
+            } catch (err) {
+                const debugDiv = document.getElementById('debug');
+                debugDiv.innerHTML += `<p style="color: red">Error: ${err.message}</p>`;
+                console.error('Detailed error:', err);
+            }
+        }
+
+        // 檢查 SDK 載入狀態
+        if (typeof liff === 'undefined') {
+            document.getElementById('debug').innerHTML = '<p style="color: red">LIFF SDK not loaded yet</p>';
+        }
+
+        // 啟動應用
+        window.onload = initializeLiff;
+    </script>
+</body>
+</html>
