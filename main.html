@@ -33,25 +33,27 @@
             // 取得完整的 targetUrl
             const encodedTargetUrl = urlSearchParams.get('url');
             if (encodedTargetUrl) {
-                // 將 decodedTargetUrl 轉為 URL 物件
-                const targetUrlObj = new URL(decodedTargetUrl);
+                const decodedTargetUrl = safeDecodeURIComponent(encodedTargetUrl);
                 try {
-                // 從 targetUrl 中解析 tags
-                const targetParams = targetUrlObj.searchParams;
-                const tagsParam = targetParams.get('tags');
-                if (tagsParam) {
-                    params.tags = JSON.parse(tagsParam);
-                    // 移除 tags 參數
-                    targetParams.delete('tags');
+                    // 將 decodedTargetUrl 轉為 URL 物件
+                    const targetUrlObj = new URL(decodedTargetUrl);
+                    
+                    // 從 targetUrl 中解析 tags
+                    const targetParams = targetUrlObj.searchParams;
+                    const tagsParam = targetParams.get('tags');
+                    if (tagsParam) {
+                        params.tags = JSON.parse(tagsParam);
+                        // 移除 tags 參數
+                        targetParams.delete('tags');
+                    }
+                    // 還原不包含 tags 的 URL
+                    params.url = `${targetUrlObj.origin}${targetUrlObj.pathname}?${targetParams.toString()}`;
+                    } catch (e) {
+                        console.error('Error parsing targetUrl or tags:', e);
+                    }
                 }
-                // 還原不包含 tags 的 URL
-                params.url = `${targetUrlObj.origin}${targetUrlObj.pathname}?${targetParams.toString()}`;
-                } catch (e) {
-                    console.error('Error parsing targetUrl or tags:', e);
-                }
-            }
             return params;
-        }
+            }
 
         // 發送數據至 Shopline Tag Webhook
         async function sendDataToWebhook(userId, params) {
