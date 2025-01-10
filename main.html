@@ -30,25 +30,26 @@
                 extraParams: {}
             };
 
-            // 取得完整的 URL 參數（包含 query string）
-            const fullUrl = urlSearchParams.get('url');
-            if (fullUrl) {
-                // 解碼完整的 URL
-                const decodedUrl = safeDecodeURIComponent(fullUrl);
-                params.url = decodedUrl;
-
-                // 分析 URL 中的 tags 參數
+            // 取得完整的 targetUrl
+            const encodedTargetUrl = urlSearchParams.get('url');
+            if (encodedTargetUrl) {
+                // 將 decodedTargetUrl 轉為 URL 物件
+                const targetUrlObj = new URL(decodedTargetUrl);
                 try {
-                    const targetUrl = new URL(decodedUrl);
-                    const tagsParam = targetUrl.searchParams.get('tags');
-                    if (tagsParam) {
-                        params.extraParams.tags = JSON.parse(safeDecodeURIComponent(tagsParam));
-                    }
+                // 從 targetUrl 中解析 tags
+                const targetParams = targetUrlObj.searchParams;
+                const tagsParam = targetParams.get('tags');
+                if (tagsParam) {
+                    params.tags = JSON.parse(tagsParam);
+                    // 移除 tags 參數
+                    targetParams.delete('tags');
+                }
+                // 還原不包含 tags 的 URL
+                params.url = `${targetUrlObj.origin}${targetUrlObj.pathname}?${targetParams.toString()}`;
                 } catch (e) {
-                    console.error('Error parsing URL or tags:', e);
+                    console.error('Error parsing targetUrl or tags:', e);
                 }
             }
-            
             return params;
         }
 
