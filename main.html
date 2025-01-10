@@ -3,131 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Line LIFF App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 0;
-            background-color: #f0f0f0;
-        }
-        .profile-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .profile-img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            margin-bottom: 15px;
-        }
-        .profile-info {
-            margin-bottom: 10px;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-        }
-    </style>
+    <title>Line LIFF Redirect App</title>
 </head>
 <body>
-    <div class="profile-container">
-        <div id="loading" class="loading">載入中...</div>
-        <div id="profile" style="display:none;">
-            <img id="profileImage" class="profile-img" src="" alt="Profile Picture">
-            <div id="userId" class="profile-info"></div>
-            <div id="displayName" class="profile-info"></div>
-            <div id="statusMessage" class="profile-info"></div>
-            <div id="email" class="profile-info"></div>
-        </div>
-    </div>
+    <div id="loading">載入中...</div>
 
     <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     
     <script>
+        // URL 解碼函數
+        function decodeURIComponentSafe(uri) {
+            try {
+                return decodeURIComponent(uri);
+            } catch (e) {
+                return uri;
+            }
+        }
+
+        // 從 URL 獲取參數
+        function getUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const params = {};
+            
+            // 獲取基本參數
+            params.liffId = urlParams.get('liffId');
+            params.url = urlParams.get('url');
+            
+            // 獲取 tags 參數（如果存在）
+            const tags = urlParams.get('tags');
+            if (tags) {
+                try {
+                    params.tags = JSON.parse(decodeURIComponentSafe(tags));
+                } catch (e) {
+                    console.error('Error parsing tags:', e);
+                    params.tags = [];
+                }
+            }
+            
+            return params;
+        }
+
+        // 重定向到目標 URL
+        async function redirectToTarget(userId, params) {
+            try {
+                // 建構重定向 API 的請求 URL
+                const redirectApiUrl = new URL('https://api.besparks.co/api:G90hiIoE/redirect_v2');
+                
+                // 添加原始目標 URL
+                redirectApiUrl.searchParams.append('url', params.url);
+                
+                // 添加用戶 ID
+                redirectApiUrl.searchParams.append('userId', userId);
+                
+                // 如果有 tags，添加 tags
+                if (params.tags && params.tags.length > 0) {
+                    redirectApiUrl.searchParams.append('tags', JSON.stringify(params.tags));
+                }
+
+                // 執行重定向
+                window.location.href = redirectApiUrl.toString();
+            } catch (error) {
+                console.error('Redirect error:', error);
+                document.getElementById('loading').innerText = '重定向發生錯誤';
+            }
+        }
+
         // LIFF 初始化
         async function initializeLiff() {
             try {
-                // 從 URL 獲取 LIFF ID
-                const urlParams = new URLSearchParams(window.location.search);
-                const liffId = urlParams.get('liffId');
+                // 獲取 URL 參數
+                const params = getUrlParameters();
                 
-                if (!liffId) {
-                    throw new Error('請提供 LIFF ID');
+                if (!params.liffId) {
+                    throw new Error('缺少 LIFF ID');
+                }
+
+                if (!params.url) {
+                    throw new Error('缺少目標 URL');
                 }
 
                 // 初始化 LIFF
                 await liff.init({
-                    liffId: liffId
+                    liffId: params.liffId
                 });
 
                 // 檢查是否登入
                 if (!liff.isLoggedIn()) {
                     liff.login();
-                } else {
-                    // 獲取用戶資料
-                    const profile = await liff.getProfile();
-                    // 獲取 email (如果用戶同意)
-                    const email = liff.getDecodedIDToken()?.email;
-                    
-                    // 顯示用戶資料
-                    displayProfile(profile, email);
-                    
-                    // 如果有需要，可以將資料傳送到後端
-                    await sendToBackend(profile, email);
+                    return;
                 }
+
+                // 獲取用戶資料
+                const profile = await liff.getProfile();
+                
+                // 執行重定向
+                await redirectToTarget(profile.userId, params);
+
             } catch (err) {
-                console.error('Error initializing LIFF:', err);
+                console.error('Error:', err);
                 document.getElementById('loading').innerText = '發生錯誤：' + err.message;
-            }
-        }
-
-        // 顯示用戶資料
-        function displayProfile(profile, email) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('profile').style.display = 'block';
-            
-            document.getElementById('profileImage').src = profile.pictureUrl;
-            document.getElementById('userId').innerText = '用戶 ID：' + profile.userId;
-            document.getElementById('displayName').innerText = '顯示名稱：' + profile.displayName;
-            document.getElementById('statusMessage').innerText = '狀態訊息：' + (profile.statusMessage || '無');
-            if (email) {
-                document.getElementById('email').innerText = 'Email：' + email;
-            }
-        }
-
-        // 傳送資料到後端
-        async function sendToBackend(profile, email) {
-            try {
-                // 這裡替換成您的後端 API 端點
-                const response = await fetch('YOUR_BACKEND_API_URL', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        userId: profile.userId,
-                        displayName: profile.displayName,
-                        pictureUrl: profile.pictureUrl,
-                        statusMessage: profile.statusMessage,
-                        email: email
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('後端 API 呼叫失敗');
-                }
-
-                // 如果需要重定向到其他頁面
-                // const redirectUrl = await response.json();
-                // window.location.href = redirectUrl;
-            } catch (err) {
-                console.error('Error sending data to backend:', err);
             }
         }
 
