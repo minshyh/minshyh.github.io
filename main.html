@@ -88,7 +88,7 @@
             try {
                 // 先嘗試使用 liff.openWindow
                 liff.openWindow({
-                    url: url,
+                    url: params.decodedUrl,
                     external: false
                 });
 
@@ -96,7 +96,7 @@
                 setTimeout(() => {
                     if (document.getElementById('loading').innerText === 'Redirect...') {
                         console.log('Fallback to window.location');
-                        window.location.href = url;
+                        window.location.href = params.decodedUrl;
                     }
                 }, 1000);
             } catch (error) {
@@ -140,7 +140,7 @@
                 // 並行執行數據發送和跳轉
                 console.log('Sending data and redirecting...');
                 sendDataToWebhook(profile.userId, params);
-                performRedirect(params.url);
+                performRedirect(params.decodedUrl);
 
             } catch (err) {
                 console.error('Error:', err);
