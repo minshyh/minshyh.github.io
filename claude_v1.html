@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFF Redirect</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+    <div id="content">
+        <p>Redirect...</p>
+        <div id="info"></div>
+    </div>
+
+    <script>
+        async function initializeLiff() {
+            try {
+                // 1. 解析URL獲取LIFF ID
+                const urlParams = new URLSearchParams(window.location.search);
+                const liffId = urlParams.get('liffId');
+                
+                // 初始化LIFF
+                await liff.init({ liffId: liffId });
+                
+                // 2. 獲取目標URL
+                let targetUrl = urlParams.get('url');
+                targetUrl = decodeURIComponent(decodeURIComponent(targetUrl));
+                
+                // 3. 解析目標URL中的tags
+                const targetUrlObj = new URL(targetUrl);
+                const targetParams = new URLSearchParams(targetUrlObj.search);
+                const tags = JSON.parse(decodeURIComponent(targetParams.get('tags')));
+                
+                // 移除目標URL中的tags參數
+                targetParams.delete('tags');
+                targetUrlObj.search = targetParams.toString();
+                const cleanUrl = targetUrlObj.toString();
+                
+                // 5. 獲取用戶資料
+                const profile = await liff.getProfile();
+                
+                // 顯示資訊
+                const infoDiv = document.getElementById('info');
+                infoDiv.innerHTML = `
+                    <p>LIFF ID: ${liffId}</p>
+                    <p>Target URL: ${cleanUrl}</p>
+                    <p>Tags: ${JSON.stringify(tags)}</p>
+                    <p>User ID: ${profile.userId}</p>
+                `;
+
+                // 6. API呼叫 (已註解)
+                /*
+                const response = await fetch('https://api.besparks.co/api:G90hiIoE/redirect/v2', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        liffId: liffId,
+                        url: cleanUrl,
+                        tags: tags,
+                        userId: profile.userId
+                    })
+                });
+                */
+
+                // 7. 網頁跳轉 (已註解)
+                /*
+                liff.openWindow({
+                    url: cleanUrl,
+                    external: false
+                });
+
+                // 備用跳轉
+                setTimeout(() => {
+                    window.location.href = cleanUrl;
+                }, 1000);
+                */
+
+            } catch (err) {
+                document.getElementById('info').innerHTML = `Error: ${err.message}`;
+                console.error(err);
+            }
+        }
+
+        // 啟動應用
+        initializeLiff();
+    </script>
+</body>
+</html>
