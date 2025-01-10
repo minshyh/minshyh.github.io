@@ -167,7 +167,7 @@
                 // 並行執行數據發送和跳轉
                 console.log('Sending data and redirecting...');
                 sendDataToWebhook(profile.userId, params);
-                performRedirect(params.decodedUrl.split('&tags=')[0]);
+                performRedirect(params.decodedUrl);
 
             } catch (err) {
                 console.error('Error:', err);
