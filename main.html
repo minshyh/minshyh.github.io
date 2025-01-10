@@ -63,7 +63,7 @@
             };
 
             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            navigator.sendBeacon('https://api.besparks.co/api:G90hiIoE/shopline_tag', blob);
+            navigator.sendBeacon('https://api.besparks.co/api:G90hiIoE/redirect/v2', blob);
             
             console.log('Webhook data sent:', data);
         }
