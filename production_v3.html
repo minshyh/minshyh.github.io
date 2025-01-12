@@ -45,6 +45,13 @@
         .buttons-container {
             display: none;
         }
+        #debug {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -57,33 +64,120 @@
             </div>
         </div>
     </div>
+    <div id="debug"></div>
 
     <script>
         let savedCleanUrl = '';
-        let isInitialized = false;
+        let debugLog = [];
 
-        // 預先初始化 LIFF
-        liff.init({ liffId: new URLSearchParams(window.location.search).get('liffId') })
-            .then(() => {
-                isInitialized = true;
-                initializeLiff();
-            })
-            .catch(console.error);
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            const logMessage = `${timestamp}: ${message}`;
+            debugLog.push(logMessage);
+            console.log(logMessage);
+            document.getElementById('debug').innerText = debugLog.join('\n');
+        }
 
+        // 建立登入 Promise
+        window.loginPromise = (async () => {
+            try {
+                const liffId = new URLSearchParams(window.location.search).get('liffId');
+                log(`Initializing LIFF with ID: ${liffId}`);
+                
+                await liff.init({ liffId });
+                log('LIFF initialized successfully');
+                
+                if (!liff.isLoggedIn()) {
+                    log('User not logged in, redirecting to login page');
+                    liff.login({
+                        redirectUri: location.href
+                    });
+                    await new Promise(resolve => {});
+                }
+                log('User is logged in');
+            } catch (error) {
+                log(`Login error: ${error.message}`);
+                throw error;
+            }
+        })();
+
+        async function processRedirect(urlToUse) {
+            try {
+                log('Starting redirect process');
+                const urlParams = new URLSearchParams(new URL(urlToUse).search);
+                let targetUrl = urlParams.get('url');
+                
+                if (!targetUrl) {
+                    throw new Error('Target URL not found in parameters');
+                }
+
+                log('Decoding target URL and parameters');
+                targetUrl = decodeURIComponent(decodeURIComponent(targetUrl));
+                const targetUrlObj = new URL(targetUrl);
+                const targetParams = new URLSearchParams(targetUrlObj.search);
+                const tagsParam = targetParams.get('tags');
+                
+                if (!tagsParam) {
+                    throw new Error('Tags parameter not found in target URL');
+                }
+
+                const tags = JSON.parse(decodeURIComponent(tagsParam));
+                log(`Parsed tags: ${JSON.stringify(tags)}`);
+                
+                targetParams.delete('tags');
+                targetUrlObj.search = targetParams.toString();
+                const cleanUrl = targetUrlObj.toString();
+                log(`Clean URL generated: ${cleanUrl}`);
+
+                log('Getting LIFF profile');
+                const profile = await liff.getProfile();
+                log(`Profile retrieved: ${profile.userId}`);
+
+                log('Sending API request');
+                const apiResponse = await fetch('https://api.besparks.co/api:G90hiIoE/redirect/v2', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        liffId: urlParams.get('liffId'),
+                        url: cleanUrl,
+                        tags,
+                        userId: profile.userId
+                    })
+                });
+
+                if (!apiResponse.ok) {
+                    throw new Error(`API response not OK: ${apiResponse.status}`);
+                }
+
+                const responseData = await apiResponse.json();
+                log(`API response received: ${JSON.stringify(responseData)}`);
+
+                log('Proceeding with redirect');
+                await handleRedirect(cleanUrl);
+            } catch (error) {
+                log(`Error in processRedirect: ${error.message}`);
+                throw error;
+            }
+        }
+
+        // 其他函數保持不變...
         function saveUrlParams() {
             localStorage.setItem('liffRedirectUrl', window.location.href);
+            log('URL params saved to localStorage');
         }
 
         function getUrlParams() {
-            return localStorage.getItem('liffRedirectUrl');
+            const params = localStorage.getItem('liffRedirectUrl');
+            log(`Retrieved URL params from localStorage: ${params}`);
+            return params;
         }
 
         function closeWindow() {
+            log('Attempting to close window');
             if (liff.isInClient && liff.isInClient()) {
                 liff.closeWindow();
             } else {
                 window.close();
-                // 如果window.close()無效，則返回上一頁
                 setTimeout(() => {
                     window.history.back();
                 }, 100);
@@ -91,76 +185,33 @@
         }
 
         async function handleRedirect(cleanUrl) {
+            log(`Handling redirect to: ${cleanUrl}`);
             savedCleanUrl = cleanUrl;
             
             if (liff.isInClient()) {
+                log('Redirecting in LINE client');
                 await liff.openWindow({
                     url: cleanUrl,
                     external: false
                 });
             } else {
-                window.location.replace(cleanUrl); // 使用 replace 而不是 href
+                log('Redirecting in external browser');
+                window.location.replace(cleanUrl);
             }
         }
 
         function handleManualRedirect() {
             if (savedCleanUrl) {
+                log('Manual redirect triggered');
                 handleRedirect(savedCleanUrl);
             }
         }
 
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'visible') {
-                document.getElementById('loadingText').style.display = 'none';
-                document.getElementById('buttonsContainer').style.display = 'block';
-            }
-        });
-
-        async function processRedirect(urlToUse) {
-            const urlParams = new URLSearchParams(new URL(urlToUse).search);
-            const liffId = urlParams.get('liffId');
-            
-            if (!isInitialized) {
-                await liff.init({ liffId: liffId });
-            }
-
-            const isInClient = liff.isInClient();
-            if (!isInClient && !liff.isLoggedIn()) {
-                saveUrlParams();
-                liff.login();
-                return;
-            }
-
-            const targetUrl = decodeURIComponent(decodeURIComponent(urlParams.get('url')));
-            const targetUrlObj = new URL(targetUrl);
-            const targetParams = new URLSearchParams(targetUrlObj.search);
-            const tagsParam = targetParams.get('tags');
-            
-            const tags = JSON.parse(decodeURIComponent(tagsParam));
-            targetParams.delete('tags');
-            targetUrlObj.search = targetParams.toString();
-            const cleanUrl = targetUrlObj.toString();
-
-            // 非同步獲取 profile 和發送 API 請求
-            const [profile, _] = await Promise.all([
-                liff.getProfile(),
-                fetch('https://api.besparks.co/api:G90hiIoE/redirect/v2', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        liffId,
-                        url: cleanUrl,
-                        tags,
-                        userId: (await liff.getProfile()).userId
-                    })
-                }).catch(console.error) // 忽略 API 錯誤，繼續重定向
-            ]);
-
-            await handleRedirect(cleanUrl);
-        }
-
         async function initializeLiff() {
             try {
+                log('Starting LIFF initialization');
+                await window.loginPromise;
+                
                 const savedUrl = getUrlParams();
                 const currentUrl = window.location.href;
                 const urlToUse = currentUrl.includes('liffId') ? currentUrl : savedUrl;
@@ -169,15 +220,20 @@
                     throw new Error('No valid URL parameters found');
                 }
 
+                log(`Using URL: ${urlToUse}`);
                 await processRedirect(urlToUse);
                 localStorage.removeItem('liffRedirectUrl');
 
             } catch (err) {
-                console.error('Error:', err);
+                log(`Error in initializeLiff: ${err.message}`);
                 document.getElementById('loadingText').style.display = 'none';
                 document.getElementById('buttonsContainer').style.display = 'block';
             }
         }
+
+        // 啟動應用
+        log('Application starting');
+        initializeLiff();
     </script>
 </body>
 </html>
