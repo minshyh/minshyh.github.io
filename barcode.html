@@ -58,7 +58,11 @@
                     throw new Error('LIFF ID not provided in URL parameters');
                 }
 
-                await liff.init({ liffId: liffId });
+                await liff.init({ 
+                    liffId: liffId,
+                    withLoginOnExternalBrowser: true,
+                });
+                
 
                 if (!liff.isLoggedIn()) {
                     liff.login();
