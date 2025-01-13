@@ -61,38 +61,25 @@
     <script>
         let savedCleanUrl = '';
         
-        // 使用 sessionStorage 來存儲日誌，這樣在跳轉後的頁面也能查看
+        window.showLogs = function() {
+            const logs = JSON.parse(sessionStorage.getItem('debugLogs') || '[]');
+            console.log('=== Debug Logs ===');
+            logs.forEach(log => console.log(log));
+            return logs;
+        };
+
         function log(message) {
             const timestamp = new Date().toISOString();
             const logMessage = `${timestamp}: ${message}`;
-            
-            // 獲取現有日誌
             let logs = JSON.parse(sessionStorage.getItem('debugLogs') || '[]');
             logs.push(logMessage);
-            
-            // 只保留最新的 100 條日誌
             if (logs.length > 100) {
                 logs = logs.slice(-100);
             }
-            
-            // 保存日誌
             sessionStorage.setItem('debugLogs', JSON.stringify(logs));
             console.log(logMessage);
         }
 
-        // 提供一個函數來顯示所有日誌
-        function showLogs() {
-            const logs = JSON.parse(sessionStorage.getItem('debugLogs') || '[]');
-            console.log('=== Debug Logs ===');
-            logs.forEach(log => console.log(log));
-        }
-
-        // 初始化時嘗試顯示日誌
-        window.addEventListener('load', () => {
-            showLogs();
-        });
-
-        // 改進的登入處理
         window.loginPromise = (async () => {
             try {
                 const liffId = new URLSearchParams(window.location.search).get('liffId');
@@ -101,16 +88,19 @@
                 }
                 
                 log(`Starting LIFF initialization with ID: ${liffId}`);
-                await liff.init({ liffId });
+                
+                await liff.init({
+                    liffId: liffId,
+                    withLoginOnExternalBrowser: false
+                });
+                
                 log('LIFF initialized successfully');
 
-                // 檢查登入狀態
                 const isLoggedIn = liff.isLoggedIn();
                 log(`Login status: ${isLoggedIn}`);
 
                 if (!isLoggedIn) {
                     log('User not logged in, saving current URL');
-                    // 保存當前 URL 到 sessionStorage
                     sessionStorage.setItem('redirectUrl', window.location.href);
                     
                     log('Redirecting to LINE login');
@@ -120,7 +110,7 @@
                     return;
                 }
 
-                log('User is logged in, proceeding');
+                log('Proceeding with redirect process');
                 return true;
             } catch (error) {
                 log(`Login error: ${error.message}`);
@@ -152,14 +142,19 @@
                 targetUrlObj.search = targetParams.toString();
                 const cleanUrl = targetUrlObj.toString();
 
-                log('Getting LIFF profile and OS info');
-                const [profile, os] = await Promise.all([
-                    liff.getProfile(),
-                    liff.getOS()
-                ]);
-
-                log(`Profile retrieved: ${profile.userId}`);
+                let userId = null;
+                let os = liff.getOS();
                 log(`OS detected: ${os}`);
+
+                // 不論內外部瀏覽器都取得用戶資訊
+                log('Getting LIFF profile');
+                try {
+                    const profile = await liff.getProfile();
+                    userId = profile.userId;
+                    log(`Profile retrieved: ${userId}`);
+                } catch (error) {
+                    log(`Error getting profile: ${error.message}`);
+                }
 
                 log('Sending API request');
                 const apiResponse = await fetch('https://api.besparks.co/api:G90hiIoE/redirect/v2', {
@@ -169,8 +164,8 @@
                         liffId: urlParams.get('liffId'),
                         url: cleanUrl,
                         tags,
-                        userId: profile.userId,
-                        os: os  // 添加操作系統信息
+                        userId,
+                        os
                     })
                 });
 
@@ -226,7 +221,6 @@
                 log('Starting LIFF initialization');
                 const loginResult = await window.loginPromise;
                 
-                // 如果登入成功，繼續處理
                 if (loginResult) {
                     const currentUrl = window.location.href;
                     log(`Using URL: ${currentUrl}`);
@@ -239,12 +233,8 @@
             }
         }
 
-        // 啟動應用
         log('Application starting');
         initializeLiff();
-
-        // 為了方便調試，將 showLogs 暴露到全局
-        window.showLogs = showLogs;
     </script>
 </body>
 </html>
