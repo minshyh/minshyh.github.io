@@ -42,8 +42,102 @@
         const urlParams = new URLSearchParams(window.location.search);
         
         // 建構分享內容
-        function buildShareContent() {
+        async function buildShareContent() {
             const messageType = urlParams.get('type');
+            
+            if (messageType === 'flex') {
+                // 方法1: 從 URL 參數直接取得 Flex JSON
+                const flexData = urlParams.get('data');
+                if (flexData) {
+                    try {
+                        return [JSON.parse(decodeURIComponent(flexData))];
+                    } catch (e) {
+                        console.error('Flex JSON 解析失敗:', e);
+                    }
+                }
+                
+                // 方法2: 透過 API 取得 Flex 內容
+                const messageId = urlParams.get('id');
+                if (messageId) {
+                    try {
+                        const response = await fetch(`https://your-api.com/flex-messages/${messageId}`);
+                        const flexMessage = await response.json();
+                        return [flexMessage];
+                    } catch (e) {
+                        console.error('API 取得 Flex 內容失敗:', e);
+                    }
+                }
+                
+                // 方法3: 使用預設模板
+                const template = urlParams.get('template');
+                if (template) {
+                    const flexTemplates = {
+                        'product_card': {
+                            type: 'flex',
+                            altText: '商品資訊',
+                            contents: {
+                                type: 'bubble',
+                                hero: {
+                                    type: 'image',
+                                    url: 'https://example.com/product.jpg',
+                                    size: 'full',
+                                    aspectRatio: '20:13',
+                                    aspectMode: 'cover'
+                                },
+                                body: {
+                                    type: 'box',
+                                    layout: 'vertical',
+                                    contents: [
+                                        {
+                                            type: 'text',
+                                            text: '精選商品',
+                                            weight: 'bold',
+                                            size: 'xl'
+                                        },
+                                        {
+                                            type: 'text',
+                                            text: 'NT$ 1,299',
+                                            color: '#ff5551',
+                                            weight: 'bold',
+                                            size: 'lg'
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        'event_info': {
+                            type: 'flex',
+                            altText: '活動資訊',
+                            contents: {
+                                type: 'bubble',
+                                body: {
+                                    type: 'box',
+                                    layout: 'vertical',
+                                    contents: [
+                                        {
+                                            type: 'text',
+                                            text: '限時活動',
+                                            weight: 'bold',
+                                            size: 'xl',
+                                            color: '#ff5551'
+                                        },
+                                        {
+                                            type: 'text',
+                                            text: '立即參加享優惠！',
+                                            size: 'md',
+                                            margin: 'sm'
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    };
+                    
+                    return [flexTemplates[template]];
+                }
+            }
+            
+            // 其他類型的處理
             const messageText = urlParams.get('text');
             const imageUrl = urlParams.get('image');
             
