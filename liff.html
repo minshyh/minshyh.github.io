@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分享</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px 20px;
+            background-color: #f5f5f5;
+            margin: 0;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #333;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="message" id="message">
+            載入中...
+        </div>
+    </div>
+
+    <script>
+        // 從 URL 參數獲取分享內容
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // 建構分享內容
+        function buildShareContent() {
+            const messageType = urlParams.get('type');
+            const messageText = urlParams.get('text');
+            const imageUrl = urlParams.get('image');
+            
+            if (messageType === 'text' && messageText) {
+                return [{
+                    type: 'text',
+                    text: decodeURIComponent(messageText)
+                }];
+            } else if (messageType === 'image' && imageUrl) {
+                return [{
+                    type: 'image',
+                    originalContentUrl: decodeURIComponent(imageUrl),
+                    previewImageUrl: decodeURIComponent(imageUrl)
+                }];
+            } else if (messageType === 'imagemap') {
+                return [{
+                    type: 'imagemap',
+                    baseUrl: decodeURIComponent(urlParams.get('baseUrl') || ''),
+                    altText: decodeURIComponent(urlParams.get('altText') || 'ImageMap'),
+                    baseSize: {
+                        width: parseInt(urlParams.get('width') || '1040'),
+                        height: parseInt(urlParams.get('height') || '520')
+                    },
+                    actions: JSON.parse(decodeURIComponent(urlParams.get('actions') || '[]'))
+                }];
+            }
+            
+            // 預設分享內容
+            return [{
+                type: 'text',
+                text: '來自 ImageMap 的分享內容'
+            }];
+        }
+
+        // 從多種來源取得 LIFF ID
+        function getLiffId() {
+            // 方法1：從 URL 參數取得（推薦）
+            const urlParams = new URLSearchParams(window.location.search);
+            const liffIdFromParam = urlParams.get('liff_id');
+            if (liffIdFromParam) {
+                return liffIdFromParam;
+            }
+            
+            // 方法2：從 liff context 取得（如果可用）
+            if (typeof liff !== 'undefined' && liff.getContext) {
+                try {
+                    const context = liff.getContext();
+                    if (context && context.liffId) {
+                        return context.liffId;
+                    }
+                } catch (e) {
+                    // getContext 可能在初始化前無法使用
+                }
+            }
+            
+            // 方法3：從 referrer 取得
+            if (document.referrer && document.referrer.includes('liff.line.me')) {
+                const referrerUrl = new URL(document.referrer);
+                if (referrerUrl.hostname === 'liff.line.me') {
+                    return referrerUrl.pathname.substring(1);
+                }
+            }
+            
+            // 方法4：手動設定的預設值
+            return '2006562164-aqAKpX42'; // 你的 LIFF ID
+        }
+
+        // 初始化並執行分享
+        async function init() {
+            try {
+                const liffId = getLiffId();
+                await liff.init({ liffId: liffId });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                
+                // 執行分享
+                const shareContent = buildShareContent();
+                
+                if (liff.isApiAvailable('shareTargetPicker')) {
+                    document.getElementById('message').textContent = '請選擇分享對象';
+                    await liff.shareTargetPicker(shareContent);
+                    // shareTargetPicker 完成後會自動關閉 LIFF
+                } else {
+                    document.getElementById('message').textContent = '此版本不支援分享功能';
+                }
+                
+            } catch (error) {
+                if (error.message && error.message.includes('CANCEL')) {
+                    document.getElementById('message').textContent = '分享完畢即可關閉畫面';
+                } else {
+                    document.getElementById('message').textContent = '分享完畢即可關閉畫面';
+                }
+            }
+        }
+
+        // 頁面載入完成後執行
+        window.onload = function() {
+            if (typeof liff !== 'undefined') {
+                init();
+            } else {
+                document.getElementById('message').textContent = '載入失敗，請重新整理';
+            }
+        };
+    </script>
+</body>
+</html>
