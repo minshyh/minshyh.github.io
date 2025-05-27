@@ -128,14 +128,30 @@
                 if (liff.isApiAvailable('shareTargetPicker')) {
                     document.getElementById('message').textContent = '請選擇分享對象';
                     await liff.shareTargetPicker(shareContent);
-                    // shareTargetPicker 完成後會自動關閉 LIFF
+                    
+                    // 分享完成後自動關閉
+                    document.getElementById('message').textContent = '分享完成！即將關閉...';
+                    setTimeout(() => {
+                        if (liff.isInClient()) {
+                            liff.closeWindow();
+                        } else {
+                            window.close();
+                        }
+                    }, 1000);
                 } else {
                     document.getElementById('message').textContent = '此版本不支援分享功能';
                 }
                 
             } catch (error) {
                 if (error.message && error.message.includes('CANCEL')) {
-                    document.getElementById('message').textContent = '分享完畢即可關閉畫面';
+                    document.getElementById('message').textContent = '已取消分享';
+                    setTimeout(() => {
+                        if (liff.isInClient()) {
+                            liff.closeWindow();
+                        } else {
+                            window.close();
+                        }
+                    }, 1500);
                 } else {
                     document.getElementById('message').textContent = '分享完畢即可關閉畫面';
                 }
