@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>分享</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://static.line-scdn.net/liff/sdk/v2/liff.js"></script>
     <style>
+        /* 保持你的樣式 */
         body {
             font-family: Arial, sans-serif;
             text-align: center;
@@ -38,37 +39,52 @@
     </div>
 
     <script>
-        // 從 URL 參數獲取分享內容
         const urlParams = new URLSearchParams(window.location.search);
-        
-        // 建構分享內容
+        const messageElement = document.getElementById('message'); // 預先取得 DOM 元素
+
+        // 用於從多種來源取得 LIFF ID
+        function getLiffId() {
+            const liffIdFromParam = urlParams.get('liff_id');
+            if (liffIdFromParam) {
+                return liffIdFromParam;
+            }
+            // 這是最穩定的獲取 LIFF ID 的方式，因為其他方式可能在 init 前無效
+            return '2006562164-aqAKpX42'; // **請務必替換為你的 LIFF ID**
+        }
+
+        // 建構分享內容 (async 函數必須用 await 呼叫)
         async function buildShareContent() {
             const messageType = urlParams.get('type');
             
             if (messageType === 'flex') {
-                // 方法1: 從 URL 參數直接取得 Flex JSON
                 const flexData = urlParams.get('data');
                 if (flexData) {
                     try {
                         return [JSON.parse(decodeURIComponent(flexData))];
                     } catch (e) {
                         console.error('Flex JSON 解析失敗:', e);
+                        messageElement.textContent = 'Flex 內容解析錯誤！';
+                        return null; // 返回 null 表示內容獲取失敗
                     }
                 }
                 
-                // 方法2: 透過 API 取得 Flex 內容
                 const messageId = urlParams.get('id');
                 if (messageId) {
                     try {
-                        const response = await fetch(`https://your-api.com/flex-messages/${messageId}`);
+                        // 請替換成你的實際 API 端點
+                        const response = await fetch(`https://your-api.com/flex-messages/${messageId}`); 
+                        if (!response.ok) {
+                            throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
+                        }
                         const flexMessage = await response.json();
                         return [flexMessage];
                     } catch (e) {
                         console.error('API 取得 Flex 內容失敗:', e);
+                        messageElement.textContent = '從 API 獲取 Flex 內容失敗！';
+                        return null;
                     }
                 }
                 
-                // 方法3: 使用預設模板
                 const template = urlParams.get('template');
                 if (template) {
                     const flexTemplates = {
@@ -133,7 +149,13 @@
                         }
                     };
                     
-                    return [flexTemplates[template]];
+                    if (flexTemplates[template]) {
+                        return [flexTemplates[template]];
+                    } else {
+                        console.warn(`未知的 Flex 模板: ${template}`);
+                        messageElement.textContent = '未知的 Flex 模板！';
+                        return null;
+                    }
                 }
             }
             
@@ -153,19 +175,26 @@
                     previewImageUrl: decodeURIComponent(imageUrl)
                 }];
             } else if (messageType === 'imagemap') {
-                return [{
-                    type: 'imagemap',
-                    baseUrl: decodeURIComponent(urlParams.get('baseUrl') || ''),
-                    altText: decodeURIComponent(urlParams.get('altText') || 'ImageMap'),
-                    baseSize: {
-                        width: parseInt(urlParams.get('width') || '1040'),
-                        height: parseInt(urlParams.get('height') || '520')
-                    },
-                    actions: JSON.parse(decodeURIComponent(urlParams.get('actions') || '[]'))
-                }];
+                try {
+                    return [{
+                        type: 'imagemap',
+                        baseUrl: decodeURIComponent(urlParams.get('baseUrl') || ''),
+                        altText: decodeURIComponent(urlParams.get('altText') || 'ImageMap'),
+                        baseSize: {
+                            width: parseInt(urlParams.get('width') || '1040'),
+                            height: parseInt(urlParams.get('height') || '520')
+                        },
+                        actions: JSON.parse(decodeURIComponent(urlParams.get('actions') || '[]'))
+                    }];
+                } catch (e) {
+                    console.error('Imagemap JSON 解析失敗:', e);
+                    messageElement.textContent = 'Imagemap 內容解析錯誤！';
+                    return null;
+                }
             }
             
-            // 預設分享內容
+            // 預設分享內容 (如果沒有匹配任何參數)
+            messageElement.textContent = '使用預設分享內容';
             return [{
                   "type": "imagemap",
                   "actions": [
@@ -189,59 +218,59 @@
                 }];
         }
 
-        // 從多種來源取得 LIFF ID
-        function getLiffId() {
-            // 方法1：從 URL 參數取得（推薦）
-            const urlParams = new URLSearchParams(window.location.search);
-            const liffIdFromParam = urlParams.get('liff_id');
-            if (liffIdFromParam) {
-                return liffIdFromParam;
-            }
-            
-            // 方法2：從 liff context 取得（如果可用）
-            if (typeof liff !== 'undefined' && liff.getContext) {
-                try {
-                    const context = liff.getContext();
-                    if (context && context.liffId) {
-                        return context.liffId;
-                    }
-                } catch (e) {
-                    // getContext 可能在初始化前無法使用
-                }
-            }
-            
-            // 方法3：從 referrer 取得
-            if (document.referrer && document.referrer.includes('liff.line.me')) {
-                const referrerUrl = new URL(document.referrer);
-                if (referrerUrl.hostname === 'liff.line.me') {
-                    return referrerUrl.pathname.substring(1);
-                }
-            }
-            
-            // 方法4：手動設定的預設值
-            return '2006562164-aqAKpX42'; // 你的 LIFF ID
-        }
-
         // 初始化並執行分享
         async function init() {
+            const liffId = getLiffId();
+            if (!liffId) {
+                messageElement.textContent = '無法獲取 LIFF ID，請檢查 URL 參數或設定。';
+                console.error('無法獲取 LIFF ID。');
+                return;
+            }
+
             try {
-                const liffId = getLiffId();
                 await liff.init({ liffId: liffId });
+                console.log('LIFF 初始化成功！');
+                messageElement.textContent = 'LIFF 初始化成功，正在處理分享...';
                 
+                // 檢查是否已登入
                 if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
+                    console.log('用戶尚未登入，導向登入頁面。');
+                    liff.login(); // 導向 LINE 登入頁面
+                    return; // 登入後頁面會重新載入，所以這裡直接返回
                 }
                 
                 // 執行分享
-                const shareContent = buildShareContent();
+                const shareContent = await buildShareContent(); // <-- 這裡需要加 await
                 
+                if (!shareContent || shareContent.length === 0) {
+                    messageElement.textContent = '分享內容無效或無法獲取。';
+                    console.error('分享內容無效或無法獲取。');
+                    // 這裡可以選擇是否關閉視窗
+                    setTimeout(() => {
+                        if (liff.isInClient()) {
+                            liff.closeWindow();
+                        } else {
+                            window.close();
+                        }
+                    }, 1500);
+                    return;
+                }
+
                 if (liff.isApiAvailable('shareTargetPicker')) {
-                    document.getElementById('message').textContent = '請選擇分享對象';
-                    await liff.shareTargetPicker(shareContent);
+                    messageElement.textContent = '請選擇分享對象...';
+                    const shareResult = await liff.shareTargetPicker(shareContent);
                     
-                    // 分享完成後自動關閉
-                    document.getElementById('message').textContent = '分享完成！即將關閉...';
+                    if (shareResult) {
+                        // shareTargetPicker 成功，但用戶可能取消
+                        messageElement.textContent = '分享完成！即將關閉...';
+                        console.log('分享結果:', shareResult);
+                    } else {
+                        // 用戶取消了分享
+                        messageElement.textContent = '已取消分享。';
+                        console.log('分享已取消。');
+                    }
+                    
+                    // 無論分享成功或取消，都在一段時間後關閉
                     setTimeout(() => {
                         if (liff.isInClient()) {
                             liff.closeWindow();
@@ -250,33 +279,47 @@
                         }
                     }, 1000);
                 } else {
-                    document.getElementById('message').textContent = '此版本不支援分享功能';
+                    messageElement.textContent = '您的 LINE 版本不支援分享功能。';
+                    console.warn('shareTargetPicker API 不可用。');
                 }
                 
             } catch (error) {
-                if (error.message && error.message.includes('CANCEL')) {
-                    document.getElementById('message').textContent = '已取消分享';
-                    setTimeout(() => {
-                        if (liff.isInClient()) {
-                            liff.closeWindow();
-                        } else {
-                            window.close();
-                        }
-                    }, 1500);
+                let displayMsg = '分享發生未知錯誤。';
+                if (error.code === '2') {
+                    displayMsg = 'LIFF ID 無效或 Endpoint URL 不匹配。';
+                } else if (error.code === '3') {
+                    displayMsg = '請在 LINE App 內開啟此頁面。';
+                } else if (error.message && error.message.includes('CANCEL')) {
+                    displayMsg = '已取消操作。'; // 可能是 shareTargetPicker 或其他取消
                 } else {
-                    document.getElementById('message').textContent = '分享完畢即可關閉畫面';
+                    console.error('LIFF 初始化或分享過程發生錯誤:', error);
+                    displayMsg += ` (詳情請見 Console)`;
                 }
+                messageElement.textContent = displayMsg;
+
+                // 即使錯誤，也嘗試關閉視窗以避免無限等待，但給用戶看到錯誤訊息的時間
+                setTimeout(() => {
+                    if (liff.isInClient()) {
+                        liff.closeWindow();
+                    } else {
+                        // 在瀏覽器中，如果 LIFF 失敗，通常不會自動關閉
+                        // 可以考慮提示用戶手動關閉
+                    }
+                }, 2000); // 延長顯示時間
             }
         }
 
         // 頁面載入完成後執行
-        window.onload = function() {
-            if (typeof liff !== 'undefined') {
-                init();
-            } else {
-                document.getElementById('message').textContent = '載入失敗，請重新整理';
+        document.addEventListener('DOMContentLoaded', function() {
+            // 檢查 LIFF SDK 是否已載入
+            if (typeof liff === 'undefined') {
+                messageElement.textContent = 'LIFF SDK 未載入，請檢查網路或重新整理。';
+                console.error('LIFF SDK 載入失敗！請確認 <script src="...liff.js"> 是否正確。');
+                return;
             }
-        };
+            
+            init(); // 執行初始化和分享邏輯
+        });
     </script>
 </body>
 </html>
