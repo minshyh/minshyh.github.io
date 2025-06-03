@@ -167,9 +167,26 @@
             
             // 預設分享內容
             return [{
-                type: 'text',
-                text: '來自 ImageMap 的分享內容'
-            }];
+                  "type": "imagemap",
+                  "actions": [
+                    {
+                      "area": {
+                        "x": 273.41935483870964,
+                        "y": 835.6549520766772,
+                        "width": 503.225806451613,
+                        "height": 176.10223642172534
+                      },
+                      "type": "uri",
+                      "linkUri": "https://sparkprotein.com"
+                    }
+                  ],
+                  "altText": "你是哪種Spark股東？",
+                  "baseUrl": "https://img.shoplineapp.com/media/image_clips/683eb2b65133e3000c129998/original.png",
+                  "baseSize": {
+                    "width": 1040,
+                    "height": 1040
+                  }
+                }];
         }
 
         // 從多種來源取得 LIFF ID
