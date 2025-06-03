@@ -45,27 +45,72 @@
         const messageElement = document.getElementById('message');
 
         // 預設的 Imagemap 訊息物件
-        const defaultShareContent = [{
-            "type": "imagemap",
-            "actions": [
-                {
-                    "area": {
-                        "x": 273.41935483870964,
-                        "y": 835.6549520766772,
-                        "width": 503.225806451613,
-                        "height": 176.10223642172534
-                    },
-                    "type": "uri",
-                    "linkUri": "https://sparkprotein.com"
-                }
-            ],
-            "altText": "你是哪種Spark股東？",
-            "baseUrl": "https://img.shoplineapp.com/media/image_clips/683eb2b65133e3000c129998/original.png",
-            "baseSize": {
-                "width": 1040,
-                "height": 1040
-            }
-        }];
+        const defaultShareContent = [
+               {
+                  "type":"flex",
+                  "altText":"一起測看看你是哪種Spark股東吧！",
+                  "contents":{
+                     "type":"bubble",
+                     "size":"giga",
+                     "body":{
+                        "type":"box",
+                        "layout":"vertical",
+                        "contents":[
+                           {
+                              "type":"image",
+                              "url":"https://img.shoplineapp.com/media/image_clips/683eb2b65133e3000c129998/original.png?1748939445",
+                              "size":"full",
+                              "aspectMode":"cover",
+                              "aspectRatio":"1:1",
+                              "gravity":"top",
+                              "action":{
+                                 "type":"uri",
+                                 "label":"share",
+                                 "uri":"https://sparkprotein.com",
+                                 "altUri":{
+                                    "desktop":"https://sparkprotein.com"
+                                 }
+                              }
+                           },
+                           {
+                              "type":"box",
+                              "layout":"horizontal",
+                              "contents":[
+                                 {
+                                    "type":"button",
+                                    "action":{
+                                       "type":"uri",
+                                       "uri":"https://sparkprotein.com",
+                                       "label":"share",
+                                       "altUri":{
+                                          "desktop":"https://sparkprotein.com"
+                                       }
+                                    },
+                                    "gravity":"center",
+                                    "offsetTop":"20px",
+                                    "offsetBottom":"20px",
+                                    "offsetEnd":"10px",
+                                    "position":"absolute",
+                                    "offsetStart":"250px",
+                                    "color":"#00000000"
+                                 }
+                              ],
+                              "position":"absolute",
+                              "backgroundColor":"#00000000",
+                              "offsetBottom":"0px",
+                              "offsetStart":"0px",
+                              "offsetEnd":"0px",
+                              "paddingAll":"20px",
+                              "paddingBottom":"60px"
+                           }
+                        ],
+                        "paddingAll":"0px",
+                        "paddingTop":"0px",
+                        "paddingBottom":"0px"
+                     }
+                  }
+               }
+            ];
 
         /**
          * 顯示訊息並記錄到 Console
@@ -117,8 +162,14 @@
                 // 檢查 shareTargetPicker API 是否可用 (需要 LINE App 版本支援)
                 if (liff.isApiAvailable('shareTargetPicker')) {
                     updateMessage('請選擇分享對象...');
+
+                    // 加入 options 參數，例如允許選擇多個分享目標
+                    const options = {
+                        isMultiple: true 
+                    };
+                    
                     // 呼叫 shareTargetPicker 顯示分享對象選擇器
-                    const shareResult = await liff.shareTargetPicker(defaultShareContent);
+                    const shareResult = await liff.shareTargetPicker(defaultShareContent,options);
                     
                     if (shareResult) {
                         // 如果 shareResult 不為 null/undefined，表示分享成功或用戶已操作
