@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>分享</title>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+    <title>預設訊息分享</title>
+    <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
     <style>
-        /* 保持你的樣式 */
         body {
             font-family: Arial, sans-serif;
             text-align: center;
             padding: 50px 20px;
             background-color: #f5f5f5;
             margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* 讓內容垂直居中 */
         }
         
         .container {
@@ -34,291 +37,134 @@
 <body>
     <div class="container">
         <div class="message" id="message">
-            載入中...
+            正在載入分享功能...
         </div>
     </div>
 
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const messageElement = document.getElementById('message'); // 預先取得 DOM 元素
+        const messageElement = document.getElementById('message');
 
-        // 用於從多種來源取得 LIFF ID
-        function getLiffId() {
-            const liffIdFromParam = urlParams.get('liff_id');
-            if (liffIdFromParam) {
-                return liffIdFromParam;
-            }
-            // 這是最穩定的獲取 LIFF ID 的方式，因為其他方式可能在 init 前無效
-            return '2006562164-aqAKpX42'; // **請務必替換為你的 LIFF ID**
-        }
-
-        // 建構分享內容 (async 函數必須用 await 呼叫)
-        async function buildShareContent() {
-            const messageType = urlParams.get('type');
-            
-            if (messageType === 'flex') {
-                const flexData = urlParams.get('data');
-                if (flexData) {
-                    try {
-                        return [JSON.parse(decodeURIComponent(flexData))];
-                    } catch (e) {
-                        console.error('Flex JSON 解析失敗:', e);
-                        messageElement.textContent = 'Flex 內容解析錯誤！';
-                        return null; // 返回 null 表示內容獲取失敗
-                    }
-                }
-                
-                const messageId = urlParams.get('id');
-                if (messageId) {
-                    try {
-                        // 請替換成你的實際 API 端點
-                        const response = await fetch(`https://your-api.com/flex-messages/${messageId}`); 
-                        if (!response.ok) {
-                            throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
-                        }
-                        const flexMessage = await response.json();
-                        return [flexMessage];
-                    } catch (e) {
-                        console.error('API 取得 Flex 內容失敗:', e);
-                        messageElement.textContent = '從 API 獲取 Flex 內容失敗！';
-                        return null;
-                    }
-                }
-                
-                const template = urlParams.get('template');
-                if (template) {
-                    const flexTemplates = {
-                        'product_card': {
-                            type: 'flex',
-                            altText: '商品資訊',
-                            contents: {
-                                type: 'bubble',
-                                hero: {
-                                    type: 'image',
-                                    url: 'https://example.com/product.jpg',
-                                    size: 'full',
-                                    aspectRatio: '20:13',
-                                    aspectMode: 'cover'
-                                },
-                                body: {
-                                    type: 'box',
-                                    layout: 'vertical',
-                                    contents: [
-                                        {
-                                            type: 'text',
-                                            text: '精選商品',
-                                            weight: 'bold',
-                                            size: 'xl'
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: 'NT$ 1,299',
-                                            color: '#ff5551',
-                                            weight: 'bold',
-                                            size: 'lg'
-                                        }
-                                    ]
-                                }
-                            }
-                        },
-                        'event_info': {
-                            type: 'flex',
-                            altText: '活動資訊',
-                            contents: {
-                                type: 'bubble',
-                                body: {
-                                    type: 'box',
-                                    layout: 'vertical',
-                                    contents: [
-                                        {
-                                            type: 'text',
-                                            text: '限時活動',
-                                            weight: 'bold',
-                                            size: 'xl',
-                                            color: '#ff5551'
-                                        },
-                                        {
-                                            type: 'text',
-                                            text: '立即參加享優惠！',
-                                            size: 'md',
-                                            margin: 'sm'
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    };
-                    
-                    if (flexTemplates[template]) {
-                        return [flexTemplates[template]];
-                    } else {
-                        console.warn(`未知的 Flex 模板: ${template}`);
-                        messageElement.textContent = '未知的 Flex 模板！';
-                        return null;
-                    }
-                }
-            }
-            
-            // 其他類型的處理
-            const messageText = urlParams.get('text');
-            const imageUrl = urlParams.get('image');
-            
-            if (messageType === 'text' && messageText) {
-                return [{
-                    type: 'text',
-                    text: decodeURIComponent(messageText)
-                }];
-            } else if (messageType === 'image' && imageUrl) {
-                return [{
-                    type: 'image',
-                    originalContentUrl: decodeURIComponent(imageUrl),
-                    previewImageUrl: decodeURIComponent(imageUrl)
-                }];
-            } else if (messageType === 'imagemap') {
-                try {
-                    return [{
-                        type: 'imagemap',
-                        baseUrl: decodeURIComponent(urlParams.get('baseUrl') || ''),
-                        altText: decodeURIComponent(urlParams.get('altText') || 'ImageMap'),
-                        baseSize: {
-                            width: parseInt(urlParams.get('width') || '1040'),
-                            height: parseInt(urlParams.get('height') || '520')
-                        },
-                        actions: JSON.parse(decodeURIComponent(urlParams.get('actions') || '[]'))
-                    }];
-                } catch (e) {
-                    console.error('Imagemap JSON 解析失敗:', e);
-                    messageElement.textContent = 'Imagemap 內容解析錯誤！';
-                    return null;
-                }
-            }
-            
-            // 預設分享內容 (如果沒有匹配任何參數)
-            messageElement.textContent = '使用預設分享內容';
-            return [{
-                  "type": "imagemap",
-                  "actions": [
-                    {
-                      "area": {
+        // 預設的 Imagemap 訊息物件
+        const defaultShareContent = [{
+            "type": "imagemap",
+            "actions": [
+                {
+                    "area": {
                         "x": 273.41935483870964,
                         "y": 835.6549520766772,
                         "width": 503.225806451613,
                         "height": 176.10223642172534
-                      },
-                      "type": "uri",
-                      "linkUri": "https://sparkprotein.com"
-                    }
-                  ],
-                  "altText": "你是哪種Spark股東？",
-                  "baseUrl": "https://img.shoplineapp.com/media/image_clips/683eb2b65133e3000c129998/original.png",
-                  "baseSize": {
-                    "width": 1040,
-                    "height": 1040
-                  }
-                }];
+                    },
+                    "type": "uri",
+                    "linkUri": "https://sparkprotein.com"
+                }
+            ],
+            "altText": "你是哪種Spark股東？",
+            "baseUrl": "https://img.shoplineapp.com/media/image_clips/683eb2b65133e3000c129998/original.png",
+            "baseSize": {
+                "width": 1040,
+                "height": 1040
+            }
+        }];
+
+        /**
+         * 顯示訊息並記錄到 Console
+         * @param {string} msg 要顯示的訊息
+         * @param {boolean} isError 是否為錯誤訊息 (會顯示為紅色)
+         */
+        function updateMessage(msg, isError = false) {
+            messageElement.textContent = msg;
+            if (isError) {
+                messageElement.style.color = 'red';
+                console.error(msg);
+            } else {
+                messageElement.style.color = '#333';
+                console.log(msg);
+            }
         }
 
-        // 初始化並執行分享
-        async function init() {
-            const liffId = getLiffId();
-            if (!liffId) {
-                messageElement.textContent = '無法獲取 LIFF ID，請檢查 URL 參數或設定。';
-                console.error('無法獲取 LIFF ID。');
-                return;
-            }
+        /**
+         * 關閉 LIFF 視窗或瀏覽器視窗
+         */
+        function closeLiffWindow() {
+            setTimeout(() => {
+                if (liff.isInClient()) {
+                    liff.closeWindow();
+                } else {
+                    window.close();
+                }
+            }, 1500); // 延遲 1.5 秒後關閉
+        }
+
+        // 初始化 LIFF 並執行分享邏輯
+        async function initShare() {
+            // **請務必替換為你的 LIFF ID**
+            // 這個 LIFF ID 必須與 LINE Developers Console 中的 LIFF App 設定完全匹配
+            const liffId = '2006562164-aqAKpX42'; 
 
             try {
+                // 嘗試初始化 LIFF SDK
                 await liff.init({ liffId: liffId });
-                console.log('LIFF 初始化成功！');
-                messageElement.textContent = 'LIFF 初始化成功，正在處理分享...';
+                updateMessage('LIFF 初始化成功！');
                 
-                // 檢查是否已登入
+                // 檢查用戶是否已登入
                 if (!liff.isLoggedIn()) {
-                    console.log('用戶尚未登入，導向登入頁面。');
-                    liff.login(); // 導向 LINE 登入頁面
-                    return; // 登入後頁面會重新載入，所以這裡直接返回
+                    updateMessage('用戶尚未登入，導向登入頁面...', true);
+                    liff.login(); // 導向 LINE 登入頁面，頁面會重新載入
+                    return; // 登入後此函數會重新執行
                 }
                 
-                // 執行分享
-                const shareContent = await buildShareContent(); // <-- 這裡需要加 await
-                
-                if (!shareContent || shareContent.length === 0) {
-                    messageElement.textContent = '分享內容無效或無法獲取。';
-                    console.error('分享內容無效或無法獲取。');
-                    // 這裡可以選擇是否關閉視窗
-                    setTimeout(() => {
-                        if (liff.isInClient()) {
-                            liff.closeWindow();
-                        } else {
-                            window.close();
-                        }
-                    }, 1500);
-                    return;
-                }
-
+                // 檢查 shareTargetPicker API 是否可用 (需要 LINE App 版本支援)
                 if (liff.isApiAvailable('shareTargetPicker')) {
-                    messageElement.textContent = '請選擇分享對象...';
-                    const shareResult = await liff.shareTargetPicker(shareContent);
+                    updateMessage('請選擇分享對象...');
+                    // 呼叫 shareTargetPicker 顯示分享對象選擇器
+                    const shareResult = await liff.shareTargetPicker(defaultShareContent);
                     
                     if (shareResult) {
-                        // shareTargetPicker 成功，但用戶可能取消
-                        messageElement.textContent = '分享完成！即將關閉...';
-                        console.log('分享結果:', shareResult);
+                        // 如果 shareResult 不為 null/undefined，表示分享成功或用戶已操作
+                        updateMessage('訊息已發送！即將關閉...');
+                        console.log('分享結果:', shareResult); // 輸出分享結果
                     } else {
-                        // 用戶取消了分享
-                        messageElement.textContent = '已取消分享。';
+                        // 如果 shareResult 為 null/undefined，表示用戶取消了分享
+                        updateMessage('已取消分享。');
                         console.log('分享已取消。');
                     }
                     
-                    // 無論分享成功或取消，都在一段時間後關閉
-                    setTimeout(() => {
-                        if (liff.isInClient()) {
-                            liff.closeWindow();
-                        } else {
-                            window.close();
-                        }
-                    }, 1000);
+                    closeLiffWindow(); // 無論成功或取消，都關閉視窗
                 } else {
-                    messageElement.textContent = '您的 LINE 版本不支援分享功能。';
+                    updateMessage('您的 LINE 版本不支援分享功能。', true);
                     console.warn('shareTargetPicker API 不可用。');
                 }
                 
             } catch (error) {
-                let displayMsg = '分享發生未知錯誤。';
+                // 處理 LIFF 初始化或分享過程中發生的錯誤
+                let displayMsg = 'LIFF 發生未知錯誤。';
                 if (error.code === '2') {
-                    displayMsg = 'LIFF ID 無效或 Endpoint URL 不匹配。';
+                    displayMsg = 'LIFF ID 無效或 Endpoint URL 不匹配。請檢查 LINE Developers Console 設定。';
                 } else if (error.code === '3') {
                     displayMsg = '請在 LINE App 內開啟此頁面。';
                 } else if (error.message && error.message.includes('CANCEL')) {
-                    displayMsg = '已取消操作。'; // 可能是 shareTargetPicker 或其他取消
+                    displayMsg = '操作已取消。'; // 可能是 shareTargetPicker 或其他 LIFF 操作被取消
                 } else {
-                    console.error('LIFF 初始化或分享過程發生錯誤:', error);
-                    displayMsg += ` (詳情請見 Console)`;
+                    // 其他未預期的錯誤
+                    console.error('LIFF 錯誤物件:', error); // 輸出完整錯誤物件以供偵錯
+                    displayMsg += ` (錯誤碼: ${error.code || '無'}, 訊息: ${error.message || '未知'})`;
                 }
-                messageElement.textContent = displayMsg;
-
-                // 即使錯誤，也嘗試關閉視窗以避免無限等待，但給用戶看到錯誤訊息的時間
-                setTimeout(() => {
-                    if (liff.isInClient()) {
-                        liff.closeWindow();
-                    } else {
-                        // 在瀏覽器中，如果 LIFF 失敗，通常不會自動關閉
-                        // 可以考慮提示用戶手動關閉
-                    }
-                }, 2000); // 延長顯示時間
+                updateMessage(displayMsg, true); // 顯示錯誤訊息
+                closeLiffWindow(); // 錯誤時也嘗試關閉視窗
             }
         }
 
-        // 頁面載入完成後執行
+        // 當 HTML DOM 載入完成後執行主邏輯
         document.addEventListener('DOMContentLoaded', function() {
-            // 檢查 LIFF SDK 是否已載入
+            // 在執行 initShare() 之前，先確認 liff 物件是否存在
+            // 以防 LIFF SDK 檔案載入失敗
             if (typeof liff === 'undefined') {
-                messageElement.textContent = 'LIFF SDK 未載入，請檢查網路或重新整理。';
-                console.error('LIFF SDK 載入失敗！請確認 <script src="...liff.js"> 是否正確。');
+                updateMessage('LIFF SDK 未載入，請檢查網路或重新整理。', true);
                 return;
             }
             
-            init(); // 執行初始化和分享邏輯
+            initShare(); // 啟動 LIFF 初始化及分享流程
         });
     </script>
 </body>
